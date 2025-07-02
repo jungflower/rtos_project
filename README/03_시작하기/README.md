@@ -90,9 +90,106 @@ SECTIONS
 -> `MOV  R0, R1`의 기계어 = `0xe1a00001`
 
 
+✅ **QEMU로 실행하기**
+
+`gdb-multiarch navilos.axf` : navilos.axf 실행파일 열어 디버깅  
+
+`sudo apt install libgtk-3-dev` : qemu gui 설치  
+
+👉QEMU 실행  
+
+`qemu-system-arm -M realview-pb-a8 -kernel navilos.axf -S -gdb tcp::1234` : qemu realview-pb-a8 타겟 보드로 navilos.axf 바이너리 파일 펌웨어나 커널로 로드해서 실행  
+-> -S: gdb붙을 때까지 아무 동작 안함  
+-> 포트 1234에 gdb 서버 open  
+
+`gdb-multiarch` : gdb 실행  
+-> gdb안에서 `target remote:1234` : qemu랑 원격 연결  
+
+*실행 결과*  
+  ![alt text](image-3.png)  
+  -> 주소0에서 부터 시작해, 4개의 워드를 16진수로 보여주라는 결과, disamble했던 0xe1a0001과 동일함을 확인  
+  ![alt text](image-5.png)  
+  -> 디어셈블리 해서 보면 동일함을 확인  
 
 
+✅ **빌드 자동화하기**  
+-> Makefile 작성  
+```makefile
+ARCH = armv7-a
+MCPU = cortex-a8
+
+# toolchain : 크로스 컴파일에 관여하는 유틸리티들
+CC = arm-none-eabi-gcc
+AS = arm-none-eabi-as 
+LD = arm-none-eabi-ld 
+OC = arm-none-eabi-objcopy
+
+LINKER_SCRIPT = ./navilos.ld
+
+ASM_SRCS = $(wildcard boot/*.S)
+# 확장자 S인 파일을 모두 찾아 object로 변경 및 디렉터리도 build로
+ASM_OBJS = $(patsubst boot/%.S, build/%.o, $(ASM_SRCS))
+
+navilos = build/navilos.axf
+navilos_bin = build/navilos.bin
+
+.PHONY: all clean run debug gdb
+
+all: $(navilos)
+
+clean:
+	@rm -fr build
+
+run: $(navilos)
+	qemu-system-arm -M realview-pb-a8 -kernel $(navilos)
+
+debug: $(navilos)
+	qemu-system-arm -M realview-pb-a8 -kernel $(navilos) -S -gdb tcp::1234
+
+gdb:
+	gdb-multiarch
+
+$(navilos): $(ASM_OBJS)	$(LINKER_SCRIPT)
+	$(LD) -n -T $(LINKER_SCRIPT) -o $(navilos) $(ASM_OBJS)
+	$(OC) -O binary $(navilos) $(navilos_bin)
+
+build/%.o: boot/%.S
+	mkdir -p $(shell dirname $@)
+	$(AS) -march=$(ARCH) -mcpu=$(MCPU) -g -o $@ $<
 
 
+```
+![alt text](image-6.png)  
+
+-> make 자동화 성공 (build 폴더 생성)  
 
 
+✅ **하드웨어 정보 읽어오기 - 데이터 시트 읽는 방법**  
+하드웨어에서 정보를 읽어오고 정보를 쓰기 위해서는 `레지스터`를 활용 !
+* 레지스터 : 하드웨어가 소프트웨어와 상호작용하는 인터페이스  
+  
+*Datasheet Site*  
+https://developer.arm.com/documentation/dui0417/d/programmer-s-reference/status-and-system-control-registers/id-register--sys-id?lang=en  
+-> SYS_ID : 보드의 ID 정보를 담고 있는 읽기 전용 레지스터  
+![alt text](image-7.png)  
+
+- 실습
+R0: ID register(SYS_ID)  
+-> R1에 R0의 하드웨어 정보 읽어서 담기  
+```asm
+.text
+    .code 32
+
+    .global vector_start
+    .global vector_end
+
+    vector_start:
+      LDR R0, = 0x10000000
+      LDR R1, [R0]
+    vector_end:
+      .space 1024, 0
+.end
+```
+*실행 결과*
+![alt text](image-8.png)
+-> r0 = 0x10000000 주소에 값을 읽어 r1에 넣음! 보드 이름에 따른 0x178 ... 값 나온 것 확인
