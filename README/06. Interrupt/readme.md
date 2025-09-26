@@ -40,3 +40,57 @@
 - RealViewPB에서는 인터럽트 컨트롤러를 `GIC(Generic Intterrupt Controller)`라 부른다.  
 
 1. GIC 레지스터 구조체 만들기
+```C
+// CPU Interface Registers
+typedef struct GicCput_t
+{
+    CpuControl_t       cpucontrol;        //0x000
+    PriorityMask_t     prioritymask;      //0x004
+    BinaryPoint_t      binarypoint;       //0x008
+    InterruptAck_t     interruptack;      //0x00C
+    EndOfInterrupt_t   endofinterrupt;    //0x010
+    RunningInterrupt_t runninginterrupt;  //0x014
+    HighestPendInter_t highestpendinter;  //0x018
+} GicCput_t;
+
+// Distributor registers
+typedef struct GicDist_t
+{
+    DistributorCtrl_t   distributorctrl;    //0x000
+    ControllerType_t    controllertype;     //0x004
+    uint32_t            reserved0[62];      //0x008-0x0FC
+    uint32_t            reserved1;          //0x100
+    uint32_t            setenable1;         //0x104
+    uint32_t            setenable2;         //0x108
+    uint32_t            reserved2[29];      //0x10C-0x17C
+    uint32_t            reserved3;          //0x180
+    uint32_t            clearenable1;       //0x184
+    uint32_t            clearenable2;       //0x188
+} GicDist_t;
+
+#define GIC_CPU_BASE  0x1E000000  //CPU interface
+#define GIC_DIST_BASE 0x1E001000  //distributor
+
+```  
+![alt text](image.png)
+![alt text](image-1.png)  
+- 각 CPU interface / distributor 주소 memory map과 일치  
+- CPU interface (GICC): Distributor가 특정 CPU로 보낸 인터럽트를 실제 CPU가 받아 처리할 수 있도록 연결  
+- 인터럽트를 배분하는 역할  
+
+2. Hal/Regs.c에 GIC의 레지스터 인스턴스 2개 생성  
+```C
+#include "Interrupt.h"
+
+volatile GicCput_t* GicCpu = (GicCput_t*)GIC_CPU_BASE;
+volatile GicDist_t* GicDist = (GicDist_t*)GIC_DIST_BASE;
+```
+
+3. Hal/HalInterrupt.h 파일 추가하여 인터럽트 API 설계  
+```C
+void Hal_interrupt_init(void); // 초기화
+void Hal_interrupt_enable(uint32_t interrupt_num); // 활성화
+void Hal_interrupt_disable(uint32_t interrupt_num); // 비활성화
+void Hal_interrupt_register_handler(InterHdlr_fptr handler, uint32_t interrupt_num); // 개별 인터럽트 별로 따로 연결해야 하는 인터럽트 핸들러 등록
+void Hal_interrupt_run_handler(void); // 개별 인터럽트의 핸들러를 IRQ / FIQ로 구분해서 인터럽트 핸들러 실행
+```
