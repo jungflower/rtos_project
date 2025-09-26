@@ -138,4 +138,27 @@ void Hal_interrupt_run_handler(void); // 개별 인터럽트의 핸들러를 IRQ
 1. Uart.c 파일에서 Interrupt handler 부분과 초기화부분 추가  
 2. main.c 부분에서 UART와 인터럽트 연결 -> interrupt 초기화 함수 추가
 
+### 6.3 IRQ 익셉션 벡터 연결  
+인터럽트가 발생하면 인터럽트 컨트롤러는 이 인터럽트를 접수해서 ARM 코어로 전달 -> ARM코어는 IRQ 익셉션 발생 -> 동작모드를 IRQ모드로 바꾸면서 동시에 익셉션 벡터 테이블의 IRQ 익셉션 벡터로 바로 점프 !!  
+
+따라서 익셉션 벡터 테이블의 IRQ 익셉션 벡터와 인터럽트 컨트롤러의 인터럽트 핸들러를 연결하는 작업 필요.  
+
+1. `/boot/Handler.c` 파일 생성해서 익셉션 핸들러 만들기  
+```C
+__attribute__((interrupt("IRQ"))) void Irq_Handler(void)
+{
+    Hal_interrupt_run_handler();
+}
+```  
+- `__attribute__` : GCC의 컴파일러 확장 기능을 사용하겠다는 의미 (ARM용 GCC의 컴파일러 확장 기능을 사용하겠다 !!)  
+-> 위의 코드같은 경우는 IRQ의 핸들러에 진입하는 코드와 나가는 코드를 자동으로 만들어주겠단 의미  
+
+2. /boot/Entry.S 에서 익셉션 벤터와 인터럽트 핸들러 연결  
+
+**최종적으로 main문 빌드해서 테스트** 
+$ `qemu-system-arm -M realview-pb-a8 -kernel build/navilos.axf -nographic`  
+
+  ![alt text](image-4.png)  
+
+키보드 입력대로 잘 입력된 것 확인!! -> 인터럽트 컨트롤러 사용해서 키보드 입력 받기 성공.
 
