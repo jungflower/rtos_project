@@ -93,4 +93,49 @@ void Hal_interrupt_enable(uint32_t interrupt_num); // 활성화
 void Hal_interrupt_disable(uint32_t interrupt_num); // 비활성화
 void Hal_interrupt_register_handler(InterHdlr_fptr handler, uint32_t interrupt_num); // 개별 인터럽트 별로 따로 연결해야 하는 인터럽트 핸들러 등록
 void Hal_interrupt_run_handler(void); // 개별 인터럽트의 핸들러를 IRQ / FIQ로 구분해서 인터럽트 핸들러 실행
-```
+```  
+
+4. Hal/rvpb/Interrupt.c 설계한 API 내용 구현  
+
+1. `Hal_interrupt_init()`  
+- CPU interface / Distributor 레지스터 모두 on  
+- Interrupt 키기 위해 Priority mask 0xF로 설정  
+- Handler 함수 모두 초기화  
+
+**`enable_irq()` 추가 방법**  
+-> cpsr의 IRQ 마스크를 끄는 코드  
+1. `/lib/armcpu.h` / `/lib/armcpu.c` 내용 추가
+- IRQ / FIQ 키고 끄는 함수   
+- cpsr을 제어하려면 어셈블리어를 사용할 수 밖에 없기 때문에 
+    1. 어셈블리어 소스 파일 만들어 완전히 어셈블리어로 작성
+    2. C언어 소스 파일을 만들고 C언어 함수 속에서 인라인 어셈블리어를 사용하는 방법 -> 이걸로 작성 예정  
+    ->장점: 스택에 레지스터를 백업 및 복구하는 코드와 리턴 처리하는 코드를 컴파일러가 자동으로 만듬. 
+* BIC는 1이 있는 비트에 0을 쓰고, ORR은 반대로 1을 쓴다. 
+
+**priority mask**  
+![alt text](image-2.png)  
+- 4번부터 7번 비트까지만 의미가 있어, 모두 0으로 설정하면 모든 인터럽트를 다 마스크해버림 = 즉 모든 인터럽트를 막음. 
+- 4번부터 7번 비트까지를 0xF로 설정하면 인터럽트의 우선순위가 0x0부터 0xE까지인 인터럽트를 허용한다는 의미 -> 우선순위의 기본값은 0이므로 실제로는 모든 인터럽트를 다 허용  
+
+2. `Hal_interrupt_enable` / `Hal_interrupt_disable`  
+
+![alt text](image-3.png)  
+
+- 특정 IRQ ID를 받아 해당 인터럽트를 Enable / disable 하도록 GIC 레지스터에 반영  
+- GIC는 총 64개의 인터럽트를 관리
+    - 한 레지스터(Set Enable)가 32개의 인터럽트를 담당
+    - `SetEnable1` → IRQ32 ~ IRQ63  
+    - `SetEnable2` → IRQ64 ~ IRQ95  
+- 따라서 원하는 비트 오프셋을 구하려면 IRQ 번호에서 32를 빼야 함  
+- 이 계산을 자동화한 알고리즘을 Hal_interrupt_enable/disable 함수에 구현 → 드라이버는 IRQ 번호만 전달하면 알아서 레지스터/비트 위치 계산 후 반영    
+
+3. `Hal_interrupt_register_handler()` / `Hal_interrupt_run_handler()`  
+- 인터럽트 핸들러를 처리하는 함수
+- `Hal_interrupt_register_handler`: 인터럽트 핸들러 함수에 등록하는 함수  
+- `Hal_interrupt_run_handler` : 인터럽트 핸들러 실행하는 함수
+
+
+
+
+
+

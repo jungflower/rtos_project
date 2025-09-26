@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "halinterrupt.h": "c",
+        "armcpu.h": "c"
+    }
+}
