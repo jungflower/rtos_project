@@ -1,7 +1,7 @@
 #ifndef HAL_HALINTERRUPT_H_
 #define HAL_HALINTERRUPT_H_
 
-#define INTERRUIPT_HANDLER_NUM 255
+#define INTERRUPT_HANDLER_NUM 255
 
 typedef void(*InterHdlr_fptr)(void);
 

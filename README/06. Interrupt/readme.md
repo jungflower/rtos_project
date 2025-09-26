@@ -134,8 +134,8 @@ void Hal_interrupt_run_handler(void); // 개별 인터럽트의 핸들러를 IRQ
 - `Hal_interrupt_register_handler`: 인터럽트 핸들러 함수에 등록하는 함수  
 - `Hal_interrupt_run_handler` : 인터럽트 핸들러 실행하는 함수
 
-
-
-
+### 6.2 UART 입력과 인터럽트 연결  
+1. Uart.c 파일에서 Interrupt handler 부분과 초기화부분 추가  
+2. main.c 부분에서 UART와 인터럽트 연결 -> interrupt 초기화 함수 추가
 
 

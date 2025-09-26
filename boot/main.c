@@ -1,5 +1,6 @@
 #include "stdint.h"
 #include "HalUart.h"
+#include "HalInterrupt.h"
 
 #include "stdio.h"
 static void HW_init(void);
@@ -28,6 +29,7 @@ void main(void)
 
 static void HW_init(void)
 {
+    Hal_interrupt_init();
     Hal_uart_init();
 }
 
